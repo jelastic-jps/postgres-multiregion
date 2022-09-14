@@ -1,0 +1,125 @@
+type: update
+id: postgres-primary-secondary-multiregion-auto-cluster
+logo: /images/postgres-70x70.png
+name: PostgreSQL Primary-Secondary Multiregion Auto-Cluster
+
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+
+targetNodes:
+  nodeGroup: sqldb
+
+onInstall:
+  - script: scripts/getEnvNodes.js
+  - init
+  - script: |-
+      var regions = '${settings.regions}'.split(','), onAfterReturn = { setGlobals: {} }, glbs = onAfterReturn.setGlobals, pgsqlIPs = [];
+      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+          var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+          if (resp.result == 0) {
+              for (var i = 0, k = resp.nodes; i < k.length; i++) { pgsqlIPs.push(k[i].address); }
+          }
+      }
+      glbs["pgAddrsses"] = pgsqlIPs;
+      return { result: 0, onAfterReturn: onAfterReturn };
+  - addPgNodesToPool
+
+actions:
+  init:
+    - if (${settings.clone:false} || ${this.update:false}):
+      - cmd[${nodes.sqldb.master.id}]: jcm removeAllReplicaHosts
+      - getPswd
+      - forEach(globals.pgsqlEnvs):
+          - if ('${@i}' != '${env.envName}'):
+            - script: ${baseUrl}/scripts/updateConfigAfterClone.js
+      #- forEach(globals.pgsqlEnvs):
+      #    - script: |-
+      #        var resp = jelastic.marketplace.jps.Install({
+      #            envName: '${@i}',
+      #            session: session,
+      #            jps: '${baseUrl}/scripts/cloningAddon.yml'
+      #        });
+      #        if (resp.result != 0) return resp;
+      #        return { result:0 }
+    - else:
+      - getPswd
+      - forEach(globals.pgsqlEnvs):
+          - if ('${@i}' != '${env.envName}'): 
+            - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
+            - initSecondary: 
+                id: ${response.secondaryNodeId}
+                ip: ${response.secondaryNodeIp}
+                domain: ${@i}
+            - script: |-
+                resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, 'sqldb', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
+                return resp;
+      - forEach(globals.pgsqlEnvs):
+          - if ('${@i}' != '${env.envName}'): 
+            - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
+            - addSlavesToHbaConf: 
+                ip: ${response.secondaryNodeIp}
+
+  initSecondary:
+    - cmd[${nodes.sqldb.master.id}]: |-
+        jcm addReplicaHost ${this.ip} &>> /var/log/run.log
+        sudo jem service restart
+    - cmd[${nodes.sqldb.master.id}]: |-
+        sudo jem service restart
+    - script: |-
+        initSecondaryCmd = "jcm initSecondary &>> /var/log/run.log; jcm updateHbaConf ${globals.pgsqlAddresses} ${this.ip}; chown -R postgres:postgres /var/lib/pgsql/data; jem service restart";
+        resp = jelastic.env.control.ExecCmdById('${this.domain}', session, ${this.id}, toJSON([{ "command": initSecondaryCmd, "params": "" }]), false, "root");
+        return resp;
+        
+  addSlavesToHbaConf:
+    - script: |-
+        var regions = '${settings.regions}'.split(','),
+            pg_hba_string = "1i host replication  replication       ${this.ip}/32    trust",
+            pg_hba_comand = 'grep -q ${this.ip} /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
+        for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+            resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
+            if (resp.result != 0) return resp;
+        }
+        return { result: 0 };
+
+  addPgNodesToPool:
+    - forEach(globals.pgAddrsses):
+        - script: |-
+            var regions = '${settings.pgpool2Regions}'.split(','), addCmd;
+            for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+                var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+                if (resp.result == 0) {
+                    addCmd = "jcm addPgNodeToPgpool2Conf " + '${@i}' + " &>> /var/log/run.log";
+                    var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": addCmd, "params": "" }]), false, false, "postgres");
+                    if (resp.result != 0) return resp;
+                }
+            }
+            return { result: 0 };
+    - script: |-
+        var regions = '${settings.pgpool2Regions}'.split(','), enableWatchdogCmd, addNodeCmd, pgpoolNodeIp;
+        for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+            var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+            if (resp.result == 0) {
+                if ( regions.length > 1 ) {
+                    for (var node = 1, n = regions.length + 1; node < n; node++) {
+                        var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + node, session);
+                        if (resp.result != 0) { return resp; }
+                        pgpoolNodeIp = resp.nodes[0].address;
+                        addNodeCmd = "jcm addWatchdogConfig " + node + " " + pgpoolNodeIp;
+                        var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": addNodeCmd, "params": "" }]), false, false, "root");
+                        if (resp.result != 0) return resp;
+                    }
+                    var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": "jcm enableWatchdog", "params": "" }]), false, false, "root");
+                    if (resp.result != 0) return resp;
+                }
+                enableWatchdogCmd = "jcm setPgpoolNodeId " + cluster + "; chown -R postgres:postgres /etc/pgpool-II; jem service start";
+                var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": enableWatchdogCmd, "params": "" }]), false, false, "root");
+                if (resp.result != 0) return resp;
+            }
+        }
+        return { result: 0 };
+
+  getPswd:
+    - cmd[${nodes.sqldb.master.id}]: |-
+        jcm initMaster &>> /var/log/run.log
+        jcm getPswd
+    - setGlobals: 
+        password: ${response.out}

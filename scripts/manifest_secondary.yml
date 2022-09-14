@@ -1,0 +1,9 @@
+type: update
+version: 1.7
+id: postgres-multiregional-secondary-env
+name: PostgreSQL Multiregional Secondary Env
+
+targetNodes: none
+
+onInstall:
+  - setNodeDisplayName[sqldb]: Secondary

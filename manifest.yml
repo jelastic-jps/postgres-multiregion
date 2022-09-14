@@ -1,0 +1,263 @@
+type: install
+jpsVersion: '1.8.1'
+name: PostgreSQL Multi-Region Cluster
+id: postgres-cluster-multiregions
+categories:
+  - apps/clusters
+logo: /images/postgres-multiregion-logo.png
+description: 
+  text: Highly-available and reliable Postgres cluster setup with automatic multi-region distribution
+  short: Enterprise-grade Postgres Cluster with automatic distribution across several regions
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+
+onBeforeInit: scripts/onBeforeInit.js
+
+globals: 
+  password: ${fn.password(10)}
+  pgpool2Regions: ""
+
+settings:
+  main:
+    fields:
+      - caption: Version
+        name: nodeType
+        type: list    
+        values: 
+          - value: postgres10
+            caption: PostgreSQL 10
+          - value: postgres11
+            caption: PostgreSQL 11
+          - value: postgres12
+            caption: PostgreSQL 12
+          - value: postgres13
+            caption: PostgreSQL 13
+          - value: postgres14
+            caption: PostgreSQL 14
+        default: postgres13
+      - caption: Environment
+        type: envname
+        name: envName
+        dependsOn: region
+        randomName: true
+        showFullDomain: false
+        tooltip: Maximum length of environment name is 16 symbols
+        required: true
+      - type: checkbox
+        caption: "Create separate environment group"
+        name: envGroupEnabled
+        value: true
+      - caption: PostgreSQL Regions
+        type: regionlist
+        name: regions
+        disableInactive: true
+        selectFirstAvailable: false
+        multiSelect: true
+        min: 2
+        max: 5
+        filter:
+          isActive: true
+        tooltip: Select the destination regions for PostgreSQL nodes. The first selected region will host the primary node of cluster, so this region should have the highest performance. Other regions will host the secondary nodes.
+      - type: toggle
+        caption: Pgpool-II enabled
+        name: pgpoolEnabled
+        value: false
+        showIf:
+          true:
+            - caption: Pgpool-II regions
+              type: regionlist
+              name: pgpool2Regions
+              disableInactive: true
+              selectFirstAvailable: false
+              multiSelect: true
+              min: 1
+              max: 5
+              filter:
+                isActive: true
+              tooltip: Select the destination regions for the Pgpool II nodes. The first selected region will host the main (managing) Pgpool II node, other regions will host the standby nodes.
+
+actions:
+  initGlobals:
+    - script: |
+        var regions = '${settings.regions}'.split(','),
+            pgpoolRegions = '${settings.pgpool2Regions}'.split(','),
+            envGroups = eval('(' + MANIFEST + ')').envGroups, index,
+            onAfterReturn = { setGlobals: {} }, 
+            glbs = onAfterReturn.setGlobals,
+            resp, domain;
+        resp = jelastic.env.control.GetRegions(appid, session);
+        if (resp.result != 0) return resp;
+        resp = resp.array;
+        for (var i = 0, n = regions.length; i < n; i ++) {
+          index = i + 1;
+          glbs["region-" + index] = regions[i];
+          for (var a = 0, b = resp.length; a < b; a++) {
+            for (var k = 0, l = resp[a].hardNodeGroups.length; k < l; k++) {
+              if (resp[a].hardNodeGroups[k].uniqueName == regions[i])
+                glbs["domain-" + index] = resp[a].domain;
+            }
+          }
+          if (index == 1) {
+            glbs["displayName-" + index] = "Postgres Cluster Primary";
+            glbs["initial_env_master-" + index] = "true";
+          } else {
+            glbs["displayName-" + index] = "Postgres Cluster Secondary " + i;
+            glbs["initial_env_master-" + index] = "false";
+          }
+        }
+        for (var i = 0, n = pgpoolRegions.length; i < n; i ++) {
+          index = i + 1;
+          glbs["pgpoolRegion-" + index] = pgpoolRegions[i];
+        }
+        glbs["envGroups"] = envGroups;
+        glbs["regionsCount"] = regions.length;
+        glbs["master_env_name"] = "${settings.envName}-1";
+        return { result: 0, onAfterReturn: onAfterReturn };
+
+  createEnvs:
+  - script: |
+      var regions = '${settings.regions}'.split(','), actions = [];
+      var envGroups = eval('(' + MANIFEST + ')').envGroups;
+      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
+        actions.push({
+          jps: "${baseUrl}/scripts/manifest_postgres.yml?_r=${fn.random}",
+          envName: "${settings.envName}-" + cluster,
+          loggerName: "${settings.envName}-" + cluster,
+          envGroups: envGroups,
+          displayName: "${globals.displayName-" + cluster + "}",
+          region: "${globals.region-" + cluster + "}",
+          settings: {
+            nodeType: "${settings.nodeType}",
+            password: "${globals.password}",
+            regions: "${settings.regions}",
+            mainEnvName: "${settings.envName}"
+          }
+        });
+      }
+      return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
+      
+  createPgpool2Envs:
+  - script: |
+      var regions = '${settings.pgpool2Regions}'.split(','), actions = [];
+      var envGroups = eval('(' + MANIFEST + ')').envGroups;
+      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
+        actions.push({
+          jps: "${baseUrl}/scripts/manifest_pgpool2.jps?_r=${fn.random}",
+          envName: "${settings.envName}-pgpool2-" + cluster,
+          loggerName: "${settings.envName}-pgpool2-" + cluster,
+          envGroups: envGroups,
+          displayName: "Pgpool-II node " + cluster ,
+          region: "${globals.pgpoolRegion-" + cluster + "}",
+          settings: {
+            nodeType: "pgpool2",
+            password: "${globals.password}",
+            regions: "${settings.regions}",
+            mainEnvName: "${settings.envName}"
+          }
+        });
+      }
+      return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
+        
+  installClusterLogic:
+    - install: ${baseUrl}/addons/auto-cluster.yaml
+      envName: ${settings.envName}-1
+      settings:
+        regions: ${settings.regions}
+        pgpool2Regions: ${globals.pgpool2Regions}
+        mainEnvName: ${settings.envName}
+        masterAddress: ${globals.master_address_sqldb-1}
+
+  attachNodeGroups:
+    - script: |
+        var postgresEnvGroup = 'Postgres cluster ' + '${settings.envName}';
+        var postgresEnvs = '${globals.DBEnvs}';
+        var targetEnvGroups = eval('(' + MANIFEST + ')').envGroups;
+        if (!Array.isArray(targetEnvGroups)) {
+            targetEnvGroupsString = targetEnvGroups.toString();
+            targetEnvGroups = [];
+            if(targetEnvGroupsString.length != 0) {
+                targetEnvGroups.push(targetEnvGroupsString);
+            }
+        }
+        targetEnvGroups.push(postgresEnvGroup);
+        var DBEnvs = '${globals.DBEnvs}'.split(',');
+        for (var i = 0, n = DBEnvs.length; i < n; i ++) {
+            resp = jelastic.env.control.AttachEnvGroup({
+              envName  : DBEnvs[i],
+              session  : session,
+              envGroups: targetEnvGroups
+            });
+            if (resp.result != 0) { return resp; }
+        }
+        if ('${settings.pgpoolEnabled}' == 'true' ) {
+            var Pgpool2Envs = '${globals.Pgpool2Envs}'.split(',');
+            for (var i = 0, n = Pgpool2Envs.length; i < n; i ++) {
+                resp = jelastic.env.control.AttachEnvGroup({
+                  envName  : Pgpool2Envs[i],
+                  session  : session,
+                  envGroups: targetEnvGroups
+                });
+                if (resp.result != 0) { return resp; }
+            }
+        }
+        return { result: 0 }
+
+onInstall:
+  - initGlobals
+  - setGlobals:
+      domain: ${settings.envName}-1.${globals.domain-1}
+  - createEnvs
+  - script: ${baseUrl}/scripts/getClusterEnvs.js
+    envName: ${settings.envName}-1
+  - setGlobals:
+      DBEnvs: ${response.items.join(,)} 
+  - if (${settings.pgpoolEnabled:false}):
+    - createPgpool2Envs
+    - setGlobals:
+        pgpool2Regions: ${settings.pgpool2Regions}
+  - script: ${baseUrl}/scripts/getClusterEnvs.js
+    envName: ${settings.envName}-pgpool2-1
+  - setGlobals:
+      Pgpool2Envs: ${response.items.join(,)}
+  - if ('${settings.envGroupEnabled}' == 'true'):
+    - attachNodeGroups
+  - script: |-
+      var onAfterReturn = { setGlobals: {} }, pgsqlEnvs = [], glbs = onAfterReturn.setGlobals;
+      var resp = jelastic.env.control.GetEnvInfo('${settings.envName}-1', session);
+      var ipCmd = "ip a | grep -A1 venet0 | grep inet | awk '{print $2}'| sed 's|\/[0-9]*||g' | head -n 2|tail -n 1";
+      if (resp.result != 0) { return resp; } else { pgsqlEnvs.push(resp.env.shortdomain); }
+      for (var i = 0, k = resp.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'sqldb') {
+              if( k[i].ismaster ) {
+                  glbs["master_id_sqldb-1"] = k[i].id;
+                  glbs["master_address_sqldb-1"] = k[i].address;
+              }
+          }
+      }
+      return { result: 0, onAfterReturn: onAfterReturn };
+  - script: |-
+      var regions = '${settings.regions}'.split(','), currentEnvName,
+          replaceCmd = "sed -ci -e 's|MASTER_IP|PG_MASTER_IP|g' /usr/local/sbin/jcm"
+      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
+          currentEnvName = '${settings.envName}-' + cluster;
+          resp = jelastic.env.control.AddContainerEnvVars({
+            envName: currentEnvName,
+            session: session,
+            nodeGroup: "sqldb",
+            vars: {
+              "PG_MASTER_IP": '${globals.master_address_sqldb-1}'
+            }
+          });
+         if (resp.result != 0) { return resp; }
+         resp = jelastic.env.control.ExecCmdByGroup(currentEnvName, session, "sqldb", toJSON([{
+            "command": replaceCmd,
+            "params": ""
+         }]), false, false, "root");
+         if (resp.result != 0) { return resp; }
+      }
+      return { result: 0 }
+  - installClusterLogic
+
+startPage: ${nodes.sqldb.master.url}
+success:
+  email: /text/success.md?_r=${fn.random}
+  text: /text/success.md?_r=${fn.random}

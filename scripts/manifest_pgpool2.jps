@@ -1,0 +1,65 @@
+type: install
+version: 1.7
+id: pgpool2-node
+name: Pgpool II Node 
+
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+
+globals:
+  vpnAppid: ${settings.vpnAppid}
+
+nodes:
+  cloudlets: 16
+  scalingMode: STATELESS
+  nodeType: pgpool2
+  nodeGroup: extra
+  cluster: false
+  skipNodeEmails: true
+
+onBeforeMigrate:
+  stopEvent:
+    type: warning
+    message: Migration is not supported for multiregion cluster.
+
+onBeforeRemoveNode[sqldb]:
+  stopEvent:
+    type: warning
+    message: Scaling is not supported for multiregion cluster.
+
+onBeforeAddNode[sqldb]:
+  stopEvent:
+    type: warning
+    message: Scaling is not supported for multiregion cluster.
+
+onInstall:
+  - cmd[extra]: |-
+      jem service stop
+      echo -e "\n"|ssh-keygen -t rsa -N ""
+  - cmd[extra]: cat /var/lib/pgsql/.ssh/id_rsa.pub
+    user: root
+  - script: |-
+      var regions = '${settings.regions}'.split(','), publicKeyCmd,
+          pg_hba_string = "1i host    all             pgpool          0.0.0.0/0         md5",
+          pg_hba_comand = 'grep -q pgpool /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
+      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+          var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+          if (resp.result == 0) {
+              publicKeyCmd = 'echo \'${response.out}\' >> /var/lib/pgsql/.ssh/authorized_keys';
+              var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": publicKeyCmd, "params": "" }]), false, false, "root");
+              if (resp.result != 0) return resp;
+              var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
+              if (resp.result != 0) return resp;
+          }
+      }
+      return { result: 0 };
+  - cmd[extra]: |-
+      pg_md5 --md5auth --username=pgpool ${settings.password}
+      pg_md5 --md5auth --username=webadmin ${settings.password}
+      chown -R postgres:postgres /etc/pgpool-II
+    user: root
+  - if ('${settings.internalNetworkEnabled}' == 'true' ):
+    - if (!/vpnAppid/.test("${globals.vpnAppid}")):
+      - install: ${baseUrl}/scripts/networkAddon.yml
+        nodeGroup: extra
+        settings:
+          vpnAppid: ${globals.vpnAppid}

@@ -1,0 +1,59 @@
+type: update
+name: Multiregional Postgres Cloning Add-on
+logo: /images/postgres-70x70.png
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+
+targetNodes: none
+
+onInstall:
+  - setGlobals:
+      regions: ${settings.regions}
+      pgpool2Regions: ${settings.pgpool2Regions}
+      mainEnvName: ${settings.mainEnvName}
+  - installAddon:
+      id: clone-postgres-multiregional-cluster
+      nodeGroup: sqldb
+      settings:
+        regions: ${settings.regions}
+        mainEnvName: ${settings.mainEnvName}
+
+addons:
+  - id: clone-postgres-multiregional-cluster
+    name: Clone postgres multiregional cluster
+    description: Clone postgres multiregional cluster
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+    buttons:
+      - confirmText: Do you want to clone all the environments of the Postgres multiregional cluster?
+        loadingText: Cloning the multiregional cluster...
+        action: cloneCluster
+        caption: Clone cluster
+        successText: "Multiregional Postgres cluster is successfully cloned"
+    actions:
+      cloneCluster:
+        - script: |-
+            var regions = '${globals.regions}'.split(',');
+            for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+                var resp = jelastic.env.control.GetEnvInfo('${globals.mainEnvName}-' + cluster, session);
+                if (resp.result == 0) {
+                    var resp = jelastic.env.control.CloneEnv('${globals.mainEnvName}-' + cluster, session, '${globals.mainEnvName}-clone-' + cluster);
+                    if (resp.result != 0) return resp;
+                }
+            }
+            return { result: 0 };
+            var regions = '${globals.pgpool2Regions}'.split(',');
+            for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+                var resp = jelastic.env.control.GetEnvInfo('${globals.mainEnvName}-pgpool2-' + cluster, session);
+                if (resp.result == 0) {
+                    var resp = jelastic.env.control.CloneEnv('${globals.mainEnvName}-pgpool2-' + cluster, session, '${globals.mainEnvName}-clone-pgpool2-' + cluster);
+                    if (resp.result != 0) return resp;
+                }
+            }
+            return { result: 0 };
+        - install: ${baseUrl}/addons/auto-cluster.yaml
+          envName: ${globals.mainEnvName}-clone-1
+          settings:
+            nodeGroup: sqldb
+            clone: true
+            regions: "${globals.regions}"
+            pgpool2Regions: "${globals.pgpool2Regions}"
+            mainEnvName: "${globals.mainEnvName}-clone"
