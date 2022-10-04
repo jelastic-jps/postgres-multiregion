@@ -1,13 +1,13 @@
 type: install
 jpsVersion: '1.8.1'
-name: PostgreSQL Multi-Region Cluster
+name: PostgreSQL Multi-Region Cluster (Beta)
 id: postgres-cluster-multiregions
 categories:
   - apps/clusters
 logo: /images/postgres-multiregion-logo.png
 description: 
-  text: Highly-available and reliable Postgres cluster setup with automatic multi-region distribution
-  short: Enterprise-grade Postgres Cluster with automatic distribution across several regions
+  text: Highly-available and reliable Postgres cluster setup with automatic multi-region distribution (Beta)
+  short: Enterprise-grade Postgres Cluster with automatic distribution across several regions (Beta)
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
 
 onBeforeInit: scripts/onBeforeInit.js
