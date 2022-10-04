@@ -33,7 +33,7 @@ settings:
             caption: PostgreSQL 13
           - value: postgres14
             caption: PostgreSQL 14
-        default: postgres13
+        default: postgres14
       - caption: Environment
         type: envname
         name: envName
