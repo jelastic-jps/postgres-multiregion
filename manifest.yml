@@ -63,7 +63,7 @@ settings:
         value: false
         showIf:
           true:
-            - caption: Pgpool-II regions
+            - caption: Pgpool-II Regions
               type: regionlist
               name: pgpool2Regions
               disableInactive: true
