@@ -234,6 +234,22 @@ onInstall:
           }
       }
       return { result: 0, onAfterReturn: onAfterReturn };
+  - if (${settings.pgpoolEnabled:false}):
+      - script: |-
+          var onAfterReturn = { setGlobals: {} }, glbs = onAfterReturn.setGlobals;
+          var resp = jelastic.env.control.GetEnvInfo('${settings.envName}-pgpool2-1', session);
+          if (resp.result != 0) { return resp; }
+          for (var i = 0, k = resp.nodes; i < k.length; i++) {
+              if (k[i].nodeGroup == 'extra') {
+                  if( k[i].ismaster ) {
+                      glbs["master_id_pgpool-1"] = k[i].id;
+                      glbs["master_address_pgpool-1"] = k[i].address;
+                  }
+              }
+          }
+          return { result: 0, onAfterReturn: onAfterReturn };
+      - setGlobals:
+          pgpoolDomain: ${settings.envName}-pgpool2-1.${globals.domain-1}
   - script: |-
       var regions = '${settings.regions}'.split(','), currentEnvName,
           replaceCmd = "sed -ci -e 's|MASTER_IP|PG_MASTER_IP|g' /usr/local/sbin/jcm"
@@ -256,8 +272,14 @@ onInstall:
       }
       return { result: 0 }
   - installClusterLogic
+  - if (${settings.pgpoolEnabled:false}):
+    - setGlobals:
+        successPath: /text/success-pgpool.md?_r=${fn.random}
+  - else:
+    - setGlobals:
+        successPath: /text/success.md?_r=${fn.random}
 
 startPage: ${nodes.sqldb.master.url}
 success:
-  email: /text/success.md?_r=${fn.random}
-  text: /text/success.md?_r=${fn.random}
+  email: ${globals.successPath}
+  text: ${globals.successPath}
