@@ -54,7 +54,7 @@ After successful installation, you’ll receive an email based on your environme
 
 ### Entry Point
 
-By default, as an entry point we propose to use a leader Pgpool-II node deployed into first selected Region. If it fails you can use any of Pgpool-II nodes available taking either [hostname](https://www.virtuozzo.com/application-platform-docs/container-dns-hostnames/#hostnames-for-specific-containers) or IP address.
+By default, as an entry point we propose to use a leader Pgpool-II node deployed into first selected Region. If it fails you can use any of Pgpool-II nodes available taking either hostname or IP address.
 
 <p align="left">
 <img src="images/pgpool-nodes.png" width="600">
