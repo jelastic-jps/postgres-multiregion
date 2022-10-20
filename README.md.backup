@@ -4,10 +4,10 @@
 
 ## PostgreSQL Auto-Сlustering Across Different Regions with Embedded Load Balancing, Automatic Failover and Disaster Recovery
 
-PostgreSQL Multi-region cluster solution is packaged as an advanced highly available cluster on top of managed Virtuozzo Application Platform dockerized stack templates. 
+PostgreSQL Multi-Region cluster solution is packaged as an advanced highly available cluster on top of managed Virtuozzo Application Platform dockerized stack templates. 
 
 ### Database topology
-PostgreSQL officially supports the Primary-Secondary topology only. So, for the required cross-region deployment this topology is used and one more secondary node for Disaster Recovery is added. Thus, the final topology looks like: Primary-Secondary-Secondary.
+PostgreSQL officially supports the Primary-Secondary topology only. So, for the required Cross-Region deployment this topology is used and one more secondary node for Disaster Recovery is added. Thus, the final topology looks like: Primary-Secondary-Secondary.
 
 
 <p align="left"> 
@@ -18,8 +18,8 @@ The package includes Highly Available [*Pgpool-II Load Balancer*](https://www.pg
 
 ### High Availability and Failover
 
-Main purpose of cross-region DB clusters is high availability and failover capabilities at the data centre level - database should be accessible even if one of regions becomes unavailable. 
-Upon cross-region cluster, customer is able to select multiple regions and select "primary" region that should host primary servers and “secondary” region that should host secondary servers.
+Main purpose of Cross-Region DB clusters is high availability and failover capabilities at the data centre level - database should be accessible even if one of regions becomes unavailable. 
+Upon Cross-Region cluster, customer is able to select multiple Regions and select "primary" region that should host primary servers and “Secondary” region that should host secondary servers.
 
 ### Installation Process
 
@@ -54,7 +54,7 @@ After successful installation, you’ll receive an email based on your environme
 
 ### Entry Point
 
-By default, as an entry point we propose to use a leader Pgpool-II node deployed into first selected Region. If it fails you can use any of Pgpool-II nodes available taking either hostname or IP address.
+By default, as an entry point we propose to use a leader Pgpool-II node deployed into first selected Region. If it fails you can use any of Pgpool-II nodes available taking either [hostname](https://www.virtuozzo.com/application-platform-docs/container-dns-hostnames/#hostnames-for-specific-containers) or IP address.
 
 <p align="left">
 <img src="images/pgpool-nodes.png" width="600">
