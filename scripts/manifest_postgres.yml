@@ -1,0 +1,141 @@
+type: install
+version: 1.7
+id: postgres-node
+name: PostgreSQL Node 
+
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+
+globals:
+  vpnAppid: ${settings.vpnAppid}
+  postgresqlConf: '/var/lib/pgsql/data/postgresql.conf'
+
+nodes:
+  cloudlets: 32
+  scalingMode: STATELESS
+  nodeType: ${settings.nodeType}
+  nodeGroup: sqldb
+  cluster: false
+  skipNodeEmails: true
+
+onBeforeMigrate:
+  stopEvent:
+    type: warning
+    message: Migration is not supported for multiregion cluster.
+
+onBeforeRemoveNode[sqldb]:
+  stopEvent:
+    type: warning
+    message: Scaling is not supported for multiregion cluster.
+
+onBeforeAddNode[sqldb]:
+  stopEvent:
+    type: warning
+    message: Scaling is not supported for multiregion cluster.
+
+onAfterResetServicePassword[sqldb]:
+  - setPasswordAcrossRegions
+
+onAfterResetNodePassword[sqldb]:
+  - setPasswordAcrossRegions
+
+onInstall:
+  - cmd[sqldb]: |-
+      source /etc/jelastic/metainf.conf 
+      if [ "$COMPUTE_TYPE_VERSION" -ge "14" ] ; then
+          sed -ci -e 's|#password_encryption.*|password_encryption = md5|' ${globals.postgresqlConf}
+      fi
+      if [ "$COMPUTE_TYPE_VERSION" -ge "13" ] ; then
+          echo 'wal_keep_size = 1024' >> ${globals.postgresqlConf}
+      else
+          echo "wal_keep_segments = 128" >> ${globals.postgresqlConf}
+      fi
+  - cmd[${nodes.sqldb.master.id}]: |-
+      grep -q "^wal_log_hints" ${globals.postgresqlConf} || echo 'wal_log_hints = on' >> ${globals.postgresqlConf}; jem service restart
+  - waitForPostgresUp
+  - cmd[${nodes.sqldb.master.id}]: |-
+      jem passwd set -p ${settings.password}
+    user: root
+  - waitForPostgresUp
+  - setGlobals:
+      regions: ${settings.regions}
+      mainEnvName: ${settings.mainEnvName}
+  - cmd[${nodes.sqldb.master.id}]: |-
+      psql -U webadmin -d postgres -c "CREATE USER pgpool REPLICATION LOGIN CONNECTION LIMIT -1 ENCRYPTED PASSWORD '${settings.password}';"
+  - if ('${settings.internalNetworkEnabled}' == 'true' ):
+    - if (!/vpnAppid/.test("${globals.vpnAppid}")):
+      - install: ${baseUrl}/scripts/networkAddon.yml
+        nodeGroup: sqldb
+        settings:
+          vpnAppid: ${globals.vpnAppid}
+  #- install: ${baseUrl}/scripts/cloningAddon.yml
+  #  settings:
+  #    regions: ${settings.regions}
+  #    pgpool2Regions: ${settings.pgpool2Regions}
+  #    mainEnvName: ${settings.mainEnvName}
+
+onBeforeDelete:
+  - deleteEnvFromMultiregionalCluster
+
+actions:
+  waitForPostgresUp:
+    - cmd[${nodes.sqldb.master.id}]: |-
+        retries=60
+        while [ $retries -gt 0 ]; do
+            sleep 1
+            [ -n "$(netstat -nlpt 2>/dev/null | grep postmaster)" ] && break
+            let retries=${retries}-1
+        done
+      user: root
+    
+  setPasswordAcrossRegions:
+    - cmd[${nodes.sqldb.master.id}]: jcm getPswd
+    - setGlobals:
+        password: ${response.out}
+    - script: scripts/getEnvNodes.js
+    - forEach(globals.pgsqlEnvs):
+        - if ('${@i}' != '${env.envName}'):
+          - script: |-
+              var passwdCmd = "jem passwd set -p ${globals.password}",
+              resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, "sqldb", toJSON([{ "command": passwdCmd, "params": "" }]), false, false, "root");
+              return resp;
+    - script: |-
+        var regions = '${settings.pgpool2Regions}'.split(','), passCmd = "pg_md5 --md5auth --username=webadmin " + "${globals.password}";
+        for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+            var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+            if (resp.result == 0) {
+                var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": passCmd, "params": "" }]), false, false, "root");
+                if (resp.result != 0) return resp;
+            }
+        } 
+
+  deleteEnvFromMultiregionalCluster:
+    - cmd[${nodes.sqldb.master.id}]: jcm getPswd
+    - setGlobals:
+        password: ${response.out}
+    - script: |-
+        var regions = '${settings.regions}'.split(','), onAfterReturn = { setGlobals: {} },
+            glbs = onAfterReturn.setGlobals,
+            pgsqlIPs = [];
+        for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+            if ('${settings.mainEnvName}-' + cluster != 'env.envName') {
+                var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+                if (resp.result == 0) { 
+                    for (var i = 0, k = resp.nodes; i < k.length; i++) { pgsqlIPs.push(k[i].address); }
+                }
+            }
+        }
+        glbs["pgsqlAddresses"] = pgsqlIPs;
+        return { result: 0, onAfterReturn: onAfterReturn };
+    - forEach(globals.pgsqlEnvs):
+        - if (${@i} != ${env.envName}):
+          - script: |-
+              var resp = jelastic.env.control.GetEnvInfo('${@i}' + cluster, session);
+              if (resp.result == 0) {
+                  var thisNodeIp, ipCmd = "ip a | grep -A1 venet0 | grep inet | awk '{print $2}'| sed 's|\/[0-9]*||g' | head -n 2|tail -n 1";
+                  resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, "sqldb", toJSON([{ "command": ipCmd, "params": "" }]), false, false, "root");
+                  if (resp.result != 0) { return resp; } else { thisNodeIp = resp.responses[0].out; }
+                  var removeEnvCmd = "jcm updateHbaConf ${globals.nodes_address} ";
+                  resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, "sqldb", toJSON([{ "command": removeEnvCmd, "params": thisNodeIp }]), false, false, "root");
+                  return resp;
+              }
+              return { result: 0 }
