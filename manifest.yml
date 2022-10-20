@@ -12,7 +12,9 @@ baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/mas
 
 onBeforeInit: scripts/onBeforeInit.js
 
-globals: 
+globals:
+  multiregional_utils: https://github.com/jelastic-jps/common/blob/main/multiregional-cluster-utils
+  cluster_app: postgres
   password: ${fn.password(10)}
   pgpool2Regions: ""
 
@@ -63,7 +65,7 @@ settings:
         value: false
         showIf:
           true:
-            - caption: Pgpool-II Regions
+            - caption: Pgpool-II regions
               type: regionlist
               name: pgpool2Regions
               disableInactive: true
@@ -75,66 +77,11 @@ settings:
                 isActive: true
               tooltip: Select the destination regions for the Pgpool II nodes. The first selected region will host the main (managing) Pgpool II node, other regions will host the standby nodes.
 
-actions:
-  initGlobals:
-    - script: |
-        var regions = '${settings.regions}'.split(','),
-            pgpoolRegions = '${settings.pgpool2Regions}'.split(','),
-            envGroups = eval('(' + MANIFEST + ')').envGroups, index,
-            onAfterReturn = { setGlobals: {} }, 
-            glbs = onAfterReturn.setGlobals,
-            resp, domain;
-        resp = jelastic.env.control.GetRegions(appid, session);
-        if (resp.result != 0) return resp;
-        resp = resp.array;
-        for (var i = 0, n = regions.length; i < n; i ++) {
-          index = i + 1;
-          glbs["region-" + index] = regions[i];
-          for (var a = 0, b = resp.length; a < b; a++) {
-            for (var k = 0, l = resp[a].hardNodeGroups.length; k < l; k++) {
-              if (resp[a].hardNodeGroups[k].uniqueName == regions[i])
-                glbs["domain-" + index] = resp[a].domain;
-            }
-          }
-          if (index == 1) {
-            glbs["displayName-" + index] = "Postgres Cluster Primary";
-            glbs["initial_env_master-" + index] = "true";
-          } else {
-            glbs["displayName-" + index] = "Postgres Cluster Secondary " + i;
-            glbs["initial_env_master-" + index] = "false";
-          }
-        }
-        for (var i = 0, n = pgpoolRegions.length; i < n; i ++) {
-          index = i + 1;
-          glbs["pgpoolRegion-" + index] = pgpoolRegions[i];
-        }
-        glbs["envGroups"] = envGroups;
-        glbs["regionsCount"] = regions.length;
-        glbs["master_env_name"] = "${settings.envName}-1";
-        return { result: 0, onAfterReturn: onAfterReturn };
+mixins:
+  - https://github.com/jelastic-jps/common/blob/main/multiregional-cluster-utils/multiregion-globals-common.yml
+  - https://github.com/jelastic-jps/common/blob/main/multiregional-cluster-utils/multiregion-db-common.yml
 
-  createEnvs:
-  - script: |
-      var regions = '${settings.regions}'.split(','), actions = [];
-      var envGroups = eval('(' + MANIFEST + ')').envGroups;
-      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
-        actions.push({
-          jps: "${baseUrl}/scripts/manifest_postgres.yml?_r=${fn.random}",
-          envName: "${settings.envName}-" + cluster,
-          loggerName: "${settings.envName}-" + cluster,
-          envGroups: envGroups,
-          displayName: "${globals.displayName-" + cluster + "}",
-          region: "${globals.region-" + cluster + "}",
-          settings: {
-            nodeType: "${settings.nodeType}",
-            password: "${globals.password}",
-            regions: "${settings.regions}",
-            mainEnvName: "${settings.envName}"
-          }
-        });
-      }
-      return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
-      
+actions:
   createPgpool2Envs:
   - script: |
       var regions = '${settings.pgpool2Regions}'.split(','), actions = [];
@@ -156,15 +103,6 @@ actions:
         });
       }
       return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
-        
-  installClusterLogic:
-    - install: ${baseUrl}/addons/auto-cluster.yaml
-      envName: ${settings.envName}-1
-      settings:
-        regions: ${settings.regions}
-        pgpool2Regions: ${globals.pgpool2Regions}
-        mainEnvName: ${settings.envName}
-        masterAddress: ${globals.master_address_sqldb-1}
 
   attachNodeGroups:
     - script: |
@@ -206,7 +144,7 @@ onInstall:
   - setGlobals:
       domain: ${settings.envName}-1.${globals.domain-1}
   - createEnvs
-  - script: ${baseUrl}/scripts/getClusterEnvs.js
+  - script: ${globals.multiregional_utils}/get-cluster-envs.js
     envName: ${settings.envName}-1
   - setGlobals:
       DBEnvs: ${response.items.join(,)} 
@@ -214,7 +152,7 @@ onInstall:
     - createPgpool2Envs
     - setGlobals:
         pgpool2Regions: ${settings.pgpool2Regions}
-  - script: ${baseUrl}/scripts/getClusterEnvs.js
+  - script: ${globals.multiregional_utils}/get-cluster-envs.js
     envName: ${settings.envName}-pgpool2-1
   - setGlobals:
       Pgpool2Envs: ${response.items.join(,)}
