@@ -217,7 +217,7 @@ onInstall:
     - setGlobals:
         successPath: /text/success.md?_r=${fn.random}
 
-startPage: ${nodes.sqldb.master.url}
+startPage: https://node${globals.master_id_sqldb-1}-${globals.domain}/
 success:
   email: ${globals.successPath}
   text: ${globals.successPath}
