@@ -11,7 +11,7 @@ PostgreSQL officially supports the Primary-Secondary topology only. So, for the 
 
 
 <p align="left"> 
-<img src="images/topology-schema.png" width="400">
+<img src="images/global-scheme.png" width="400">
 </p>
 
 The package includes Highly Available [*Pgpool-II Load Balancer*](https://www.pgpool.net/mediawiki/index.php/Main_Page) layer to distribute requests and manage PostgreSQL replication topology.
