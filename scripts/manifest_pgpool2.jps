@@ -55,6 +55,7 @@ onInstall:
       sed -ci -e "s/^sr_check_password.*/sr_check_password = '${settings.password}'/" /etc/pgpool-II/pgpool.conf
       sed -ci -e "s/^health_check_password.*/health_check_password = '${settings.password}'/" /etc/pgpool-II/pgpool.conf
       pg_enc -m -f /etc/pgpool-II/pgpool.conf -u pgpool ${settings.password}
+      pg_enc -m -f /etc/pgpool-II/pgpool.conf -u webadmin ${settings.password}
       chown -R postgres:postgres /etc/pgpool-II
     user: root
   - if ('${settings.internalNetworkEnabled}' == 'true' ):
