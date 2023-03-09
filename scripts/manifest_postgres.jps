@@ -95,6 +95,17 @@ actions:
               var passwdCmd = "jem passwd set -p ${globals.password}",
               resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, "sqldb", toJSON([{ "command": passwdCmd, "params": "" }]), false, false, "root");
               return resp;
+    - script: |-
+        var regions = '${settings.pgpool2Regions}'.split(','), passwdCmd;
+        for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+            var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+            if (resp.result == 0) {
+                passwdCmd = "pg_enc -m -f /etc/pgpool-II/pgpool.conf -u webadmin ${globals.password}";
+                var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": passwdCmd, "params": "" }]), false, false, "postgres");
+                if (resp.result != 0) return resp;
+            }
+        }
+        return { result: 0 };
 
   deleteEnvFromMultiregionalCluster:
     - cmd[${nodes.sqldb.master.id}]: jcm getPswd
