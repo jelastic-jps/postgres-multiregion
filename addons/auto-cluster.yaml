@@ -57,6 +57,7 @@ actions:
             - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
             - addSlavesToHbaConf: 
                 ip: ${response.secondaryNodeIp}
+    - fixConnInfo
 
   initSecondary:
     - cmd[${nodes.sqldb.master.id}]: |-
@@ -78,6 +79,21 @@ actions:
             resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
             if (resp.result != 0) return resp;
         }
+        return { result: 0 };
+        
+  fixConnInfo:
+    - script: |-
+        var regions = '${settings.regions}'.split(',');
+        for (var cluster = 2, n = regions.length + 1; cluster < n; cluster++) {
+            var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+            if (resp.result != 0) return resp;
+            var serverNumber = cluster - 1;
+            var adjustConinfoCmd = "sed -ci -e 's/port=5432 user=replication/port=5432 user=replication application_name=server" + serverNumber + "/g' /var/lib/pgsql/data/postgresql.conf";
+            var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{
+                "command": adjustConinfoCmd,
+                "params": ""
+            }]), false, false, "postgres");
+        if (resp.result != 0) return resp; }
         return { result: 0 };
 
   addPgNodesToPool:
