@@ -57,7 +57,6 @@ actions:
             - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
             - addSlavesToHbaConf: 
                 ip: ${response.secondaryNodeIp}
-    - fixConnInfo
 
   initSecondary:
     - cmd[${nodes.sqldb.master.id}]: |-
