@@ -59,6 +59,7 @@ settings:
         filter:
           isActive: true
         tooltip: Select the destination regions for PostgreSQL nodes. The first selected region will host the primary node of cluster, so this region should have the highest performance. Other regions will host the secondary nodes.
+        required: true
       - type: toggle
         caption: Pgpool-II enabled
         name: pgpoolEnabled
@@ -76,6 +77,7 @@ settings:
               filter:
                 isActive: true
               tooltip: Select the destination regions for the Pgpool II nodes. The first selected region will host the main (managing) Pgpool II node, other regions will host the standby nodes.
+              required: true
 
 mixins:
   - https://github.com/jelastic-jps/common/blob/main/multiregional-cluster-utils/multiregion-globals-common.yml
