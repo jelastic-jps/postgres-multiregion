@@ -20,12 +20,12 @@ onBeforeMigrate:
     type: warning
     message: Migration is not supported for multiregion cluster.
 
-onBeforeRemoveNode[sqldb]:
+onBeforeRemoveNode[extra]:
   stopEvent:
     type: warning
     message: Scaling is not supported for multiregion cluster.
 
-onBeforeAddNode[sqldb]:
+onBeforeAddNode[extra]:
   stopEvent:
     type: warning
     message: Scaling is not supported for multiregion cluster.
