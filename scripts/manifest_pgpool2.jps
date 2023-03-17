@@ -21,14 +21,16 @@ onBeforeMigrate:
     message: Migration is not supported for multiregion cluster.
 
 onBeforeRemoveNode[extra]:
-  stopEvent:
-    type: warning
-    message: Scaling is not supported for multiregion cluster.
+  - if ('${event.params.nodeType}' == 'extra')
+      stopEvent:
+        type: warning
+        message: Scaling is not supported for multiregion cluster.
 
 onBeforeAddNode[extra]:
-  stopEvent:
-    type: warning
-    message: Scaling is not supported for multiregion cluster.
+  - if ('${event.params.nodeType}' == 'extra')
+      stopEvent:
+        type: warning
+        message: Scaling is not supported for multiregion cluster.
 
 onInstall:
   - cmd[extra]: |-
