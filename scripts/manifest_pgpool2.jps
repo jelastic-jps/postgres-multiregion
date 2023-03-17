@@ -21,13 +21,13 @@ onBeforeMigrate:
     message: Migration is not supported for multiregion cluster.
 
 onBeforeRemoveNode[extra]:
-  - if ('${event.params.nodeType}' == 'pgpool2')
+  - if ('${event.params.nodeType}' == 'pgpool2'):
       stopEvent:
         type: warning
         message: Scaling is not supported for multiregion cluster.
 
 onBeforeAddNode[extra]:
-  - if ('${event.params.nodeType}' == 'pgpool2')
+  - if ('${event.params.nodeType}' == 'pgpool2'):
       stopEvent:
         type: warning
         message: Scaling is not supported for multiregion cluster.
