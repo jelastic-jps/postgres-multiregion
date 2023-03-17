@@ -23,13 +23,13 @@ onBeforeMigrate:
 onBeforeRemoveNode[extra]:
   - if ('${event.params.name}' == 'Pgpool-II'):
       stopEvent:
-        type: warning
+        type: error
         message: Scaling is not supported for multiregion cluster.
 
 onBeforeAddNode[extra]:
   - if ('${event.params.name}' == 'Pgpool-II'):
       stopEvent:
-        type: warning
+        type: error
         message: Scaling is not supported for multiregion cluster.
 
 onInstall:
