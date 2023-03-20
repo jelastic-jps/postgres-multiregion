@@ -42,9 +42,9 @@ onInstall:
   - cmd[sqldb]: |-
       source /etc/jelastic/metainf.conf 
       if [ "$COMPUTE_TYPE_VERSION" -ge "13" ] ; then
-          echo 'wal_keep_size = 1024' >> ${globals.postgresqlConf}
+          echo 'wal_keep_size = 2048' >> ${globals.postgresqlConf}
       else
-          echo "wal_keep_segments = 128" >> ${globals.postgresqlConf}
+          echo "wal_keep_segments = 256" >> ${globals.postgresqlConf}
       fi
   - cmd[${nodes.sqldb.master.id}]: |-
       grep -q "^wal_log_hints" ${globals.postgresqlConf} || echo 'wal_log_hints = on' >> ${globals.postgresqlConf}; jem service restart
@@ -57,7 +57,7 @@ onInstall:
       regions: ${settings.regions}
       mainEnvName: ${settings.mainEnvName}
   - cmd[${nodes.sqldb.master.id}]: |-
-      psql -U webadmin -d postgres -c "CREATE USER pgpool REPLICATION LOGIN CONNECTION LIMIT -1 ENCRYPTED PASSWORD '${settings.password}';"
+      psql -U webadmin -d postgres -c "CREATE USER pgpool REPLICATION LOGIN CONNECTION LIMIT -1 ENCRYPTED PASSWORD '${settings.password}' IN ROLE pg_monitor;"
   - if ('${settings.internalNetworkEnabled}' == 'true' ):
     - if (!/vpnAppid/.test("${globals.vpnAppid}")):
       - install: ${baseUrl}/scripts/networkAddon.yml
