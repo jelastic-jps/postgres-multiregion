@@ -72,12 +72,17 @@ actions:
         
   addSlavesToHbaConf:
     - script: |-
-        var regions = '${settings.regions}'.split(','),
+        var regions = '${settings.regions}'.split(','), currentPgNodeIp,
             pg_hba_string = "1i host replication  replication       ${this.ip}/32    trust",
-            pg_hba_comand = 'grep -q ' + '${this.ip}' + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
+            ipCmd = "ip a | grep -A1 venet0 | grep inet | awk '{print $2}'| sed 's|\/[0-9]*||g' | head -n 2|tail -n 1",
+            pg_hba_comand = 'grep -q ${this.ip} /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
         for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
-            resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
-            if (resp.result != 0) return resp;
+            currentPgNodeIp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": ipCmd, "params": "" }]), false, false, "root");
+            if (currentPgNodeIp.result != 0) return currentPgNodeIp;
+            if (currentPgNodeIp.responses[0].out != '${this.ip}') {
+                resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
+                if (resp.result != 0) return resp;
+            }
         }
         return { result: 0 };
         
