@@ -74,7 +74,7 @@ actions:
     - script: |-
         var regions = '${settings.regions}'.split(','),
             pg_hba_string = "1i host replication  replication       ${this.ip}/32    trust",
-            pg_hba_comand = 'grep -q ${this.ip} /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
+            pg_hba_comand = 'grep -q ' + '${this.ip}' + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
         for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
             resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
             if (resp.result != 0) return resp;
