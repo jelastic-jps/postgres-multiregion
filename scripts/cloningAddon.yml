@@ -1,7 +1,7 @@
 type: update
 name: Multiregional Postgres Cloning Add-on
 logo: /images/postgres-70x70.png
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+baseUrl: https://raw.githubusercontent.com/DmytroZubelevych/postgres-multiregion/master
 
 targetNodes: none
 
@@ -10,6 +10,7 @@ onInstall:
       regions: ${settings.regions}
       pgpool2Regions: ${settings.pgpool2Regions}
       mainEnvName: ${settings.mainEnvName}
+      multiregional_utils: https://github.com/jelastic-jps/common/blob/main/multiregional-cluster-utils
   - installAddon:
       id: clone-postgres-multiregional-cluster
       nodeGroup: sqldb
@@ -19,41 +20,52 @@ onInstall:
 
 addons:
   - id: clone-postgres-multiregional-cluster
-    name: Clone postgres multiregional cluster
-    description: Clone postgres multiregional cluster
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+    name: Postgres multiregional cluster cloning
+    description: Provides the ability to clone all the environments of the Postgres multiregional cluster. Cloned cluster will be available in the same environment group.
+    baseUrl: https://raw.githubusercontent.com/DmytroZubelevych/postgres-multiregion/master
     buttons:
       - confirmText: Do you want to clone all the environments of the Postgres multiregional cluster?
-        loadingText: Cloning the multiregional cluster...
+        loadingText: Cloning the Postgres multiregional cluster...
         action: cloneCluster
         caption: Clone cluster
-        successText: "Multiregional Postgres cluster is successfully cloned"
+        successText: "Multiregional Postgres cluster is successfully cloned."
     actions:
       cloneCluster:
+        - script: |-
+            var newMainEnvName = '${globals.mainEnvName}'.slice(0, '${globals.mainEnvName}'.length - 3) + '-cl', 
+                onAfterReturn = { setGlobals: {} },
+                glbs = onAfterReturn.setGlobals;
+            glbs["newMainEnvName"] = newMainEnvName;
+            return { result: 0, onAfterReturn: onAfterReturn };
+        - script: ${globals.multiregional_utils}/get-cluster-envs.js
+          envName: ${globals.newMainEnvName}-1
+        - if ('${response.items.length}' != '0'):
+            - stopEvent:
+                type: warning
+                message: Clone of ${globals.mainEnvName} multiregional cluster already exists.
         - script: |-
             var regions = '${globals.regions}'.split(',');
             for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
                 var resp = jelastic.env.control.GetEnvInfo('${globals.mainEnvName}-' + cluster, session);
                 if (resp.result == 0) {
-                    var resp = jelastic.env.control.CloneEnv('${globals.mainEnvName}-' + cluster, session, '${globals.mainEnvName}-clone-' + cluster);
+                    var resp = jelastic.env.control.CloneEnv('${globals.mainEnvName}-' + cluster, session, '${globals.newMainEnvName}-' + cluster);
                     if (resp.result != 0) return resp;
                 }
             }
-            return { result: 0 };
-            var regions = '${globals.pgpool2Regions}'.split(',');
+            regions = '${globals.pgpool2Regions}'.split(',');
             for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
                 var resp = jelastic.env.control.GetEnvInfo('${globals.mainEnvName}-pgpool2-' + cluster, session);
                 if (resp.result == 0) {
-                    var resp = jelastic.env.control.CloneEnv('${globals.mainEnvName}-pgpool2-' + cluster, session, '${globals.mainEnvName}-clone-pgpool2-' + cluster);
+                    var resp = jelastic.env.control.CloneEnv('${globals.mainEnvName}-pgpool2-' + cluster, session, '${globals.newMainEnvName}-pgpool2-' + cluster);
                     if (resp.result != 0) return resp;
                 }
             }
             return { result: 0 };
         - install: ${baseUrl}/addons/auto-cluster.yaml
-          envName: ${globals.mainEnvName}-clone-1
+          envName: ${globals.newMainEnvName}-1
           settings:
             nodeGroup: sqldb
             clone: true
             regions: "${globals.regions}"
             pgpool2Regions: "${globals.pgpool2Regions}"
-            mainEnvName: "${globals.mainEnvName}-clone"
+            mainEnvName: "${globals.newMainEnvName}"
