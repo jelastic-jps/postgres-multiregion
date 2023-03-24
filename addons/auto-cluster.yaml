@@ -26,20 +26,22 @@ onInstall:
 actions:
   init:
     - if (${settings.clone:false} || ${this.update:false}):
+      - script: |-
+          var regions = '${settings.pgpool2Regions}'.split(','), cleanCmd;
+          for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+              var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+              if (resp.result == 0) {
+                  cleanCmd = "jcm cleanupNodesFromPgpool2Conf &>> /var/log/run.log";
+                  var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": cleanCmd, "params": "" }]), false, false, "postgres");
+                  if (resp.result != 0) return resp;
+              }
+          }
+          return { result: 0 };
       - cmd[${nodes.sqldb.master.id}]: jcm removeAllReplicaHosts
       - getPswd
       - forEach(globals.pgsqlEnvs):
           - if ('${@i}' != '${env.envName}'):
             - script: ${baseUrl}/scripts/updateConfigAfterClone.js
-      #- forEach(globals.pgsqlEnvs):
-      #    - script: |-
-      #        var resp = jelastic.marketplace.jps.Install({
-      #            envName: '${@i}',
-      #            session: session,
-      #            jps: '${baseUrl}/scripts/cloningAddon.yml'
-      #        });
-      #        if (resp.result != 0) return resp;
-      #        return { result:0 }
     - else:
       - getPswd
       - forEach(globals.pgsqlEnvs):
@@ -57,7 +59,14 @@ actions:
             - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
             - addSlavesToHbaConf: 
                 ip: ${response.secondaryNodeIp}
-    #- fixConnInfo 
+      - install: ${baseUrl}/scripts/cloningAddon.yml
+        envName: '${settings.mainEnvName}-1'
+        settings:
+          nodeGroup: sqldb
+          regions: "${settings.regions}"
+          pgpool2Regions: "${settings.pgpool2Regions}"
+          mainEnvName: "${settings.mainEnvName}"
+    - fixConnInfo
 
   initSecondary:
     - cmd[${nodes.sqldb.master.id}]: |-
