@@ -42,6 +42,40 @@ actions:
       - forEach(globals.pgsqlEnvs):
           - if ('${@i}' != '${env.envName}'):
             - script: ${baseUrl}/scripts/updateConfigAfterClone.js
+      - script: |-
+          var regions = '${settings.regions}'.split(','),
+              pgpool2Regions = '${settings.pgpool2Regions}'.split(','),
+              pg_hba_string = "", pg_hba_comand = "", pgpoolIp = "", pgpoolPublicKey = "",
+              deletePgpoolAddressCmd = "sed -ci -e '/^host[[:space:]]*all[[:space:]]*pgpool/d' /var/lib/pgsql/data/pg_hba.conf",
+              deletePgPoolPublicKeys = "sed -ci -e '/pgpool2/d' /var/lib/pgsql/.ssh/authorized_keys",
+              getPgPooolPublicKey = "cat /var/lib/pgsql/.ssh/id_rsa.pub",
+              ipCmd = "ip a | grep -A1 venet0 | grep inet | awk '{print $2}'| sed 's|\/[0-9]*||g' | head -n 2|tail -n 1";
+          for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+              var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+              if (resp.result == 0) {
+                  var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": deletePgpoolAddressCmd, "params": "" }]), false, false, "root");
+                  if (resp.result != 0) return resp;
+                  resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": deletePgPoolPublicKeys, "params": "" }]), false, false, "root");
+                  if (resp.result != 0) return resp;
+                  for (var pgpoolCluster = 1, n = pgpool2Regions.length + 1; pgpoolCluster < n; pgpoolCluster++) {
+                      var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+                      if (resp.result == 0) {
+                          resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": ipCmd, "params": "" }]), false, false, "root");
+                          if (resp.result != 0) { return resp; } else { pgpoolIp = resp.responses[0].out; }
+                          pg_hba_string = "1i host    all             pgpool          " + pgpoolIp + "/32         md5";
+                          pg_hba_comand = 'grep -q ' + pgpoolIp + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf'; 
+                          resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
+                          if (resp.result != 0) return resp;
+                          resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": getPgPooolPublicKey, "params": "" }]), false, false, "root");
+                          if (resp.result != 0) { return resp; } else { pgpoolPublicKey = resp.responses[0].out; }
+                          insertPgpoolPublicKeyCmd = 'echo ' + pgpoolPublicKey + ' >> /var/lib/pgsql/.ssh/authorized_keys';
+                          resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": insertPgpoolPublicKeyCmd, "params": "" }]), false, false, "root");
+                          if (resp.result != 0) return resp;
+                      }
+                  }
+              }
+          }
+          return { result: 0 };  
     - else:
       - getPswd
       - forEach(globals.pgsqlEnvs):
