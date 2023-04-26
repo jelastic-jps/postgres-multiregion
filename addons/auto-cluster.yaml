@@ -27,6 +27,20 @@ actions:
   init:
     - if (${settings.clone:false} || ${this.update:false}):
       - script: |-
+          var regions = '${settings.regions}'.split(','), currentEnvName;
+          for (var cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
+              currentEnvName = '${settings.mainEnvName}-' + cluster;
+              var resp = jelastic.env.control.AddContainerEnvVars({
+                envName: currentEnvName,
+                session: session,
+                nodeGroup: "sqldb",
+                vars: {
+                  "PG_MASTER_IP": '${nodes.sqldb.master.address}'
+                }
+              });
+          }
+          return { result: 0 };
+      - script: |-
           var regions = '${settings.pgpool2Regions}'.split(','), cleanCmd;
           for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
               var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
