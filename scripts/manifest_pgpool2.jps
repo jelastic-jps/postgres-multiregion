@@ -15,11 +15,6 @@ nodes:
   nodeGroup: extra
   cluster: false
 
-onBeforeMigrate:
-  stopEvent:
-    type: warning
-    message: Migration is not supported for multiregion cluster.
-
 onBeforeRemoveNode[extra]:
   - if ('${event.params.name}' == 'Pgpool-II'):
       stopEvent:
