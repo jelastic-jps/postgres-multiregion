@@ -3,7 +3,7 @@ version: 1.7
 id: postgres-node
 name: PostgreSQL Node 
 
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/multi
 
 globals:
   vpnAppid: ${settings.vpnAppid}
@@ -16,11 +16,6 @@ nodes:
   nodeGroup: sqldb
   cluster: false
   skipNodeEmails: true
-
-onBeforeMigrate:
-  stopEvent:
-    type: warning
-    message: Migration is not supported for multiregion cluster.
 
 onBeforeRemoveNode[sqldb]:
   stopEvent:
