@@ -71,8 +71,8 @@ actions:
                   if (resp.result != 0) return resp;
                   resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": deletePgPoolPublicKeys, "params": "" }]), false, false, "root");
                   if (resp.result != 0) return resp;
-                  for (var pgpoolCluster = 1, n = pgpool2Regions.length + 1; pgpoolCluster < n; pgpoolCluster++) {
-                      var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+                  for (var pgpoolCluster = 1, nPgpool = pgpool2Regions.length + 1; pgpoolCluster < nPgpool; pgpoolCluster++) {
+                      var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session);
                       if (resp.result == 0) {
                           resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": ipCmd, "params": "" }]), false, false, "root");
                           if (resp.result != 0) { return resp; } else { pgpoolIp = resp.responses[0].out; }
