@@ -89,7 +89,8 @@ actions:
                   }
               }
           }
-          return { result: 0 };  
+          return { result: 0 };
+      - addSecondaries
     - else:
       - getPswd
       - forEach(globals.pgsqlEnvs):
@@ -102,11 +103,7 @@ actions:
             - script: |-
                 resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, 'sqldb', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
                 return resp;
-      - forEach(globals.pgsqlEnvs):
-          - if ('${@i}' != '${env.envName}'): 
-            - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
-            - addSlavesToHbaConf: 
-                ip: ${response.secondaryNodeIp}
+      - addSecondaries
       - install: ${baseUrl}/scripts/cloningAddon.yml
         envName: '${settings.mainEnvName}-1'
         settings:
@@ -115,6 +112,13 @@ actions:
           pgpool2Regions: "${settings.pgpool2Regions}"
           mainEnvName: "${settings.mainEnvName}"
     - fixConnInfo
+
+  addSecondaries:
+    - forEach(globals.pgsqlEnvs):
+        - if ('${@i}' != '${env.envName}'):
+          - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
+          - addSlavesToHbaConf:
+              ip: ${response.secondaryNodeIp}
 
   initSecondary:
     - cmd[${nodes.sqldb.master.id}]: |-
