@@ -169,7 +169,7 @@ actions:
             for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
                 var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
                 if (resp.result == 0) {
-                    resetFailedCmd = "systemctl reset-failed pgpool-II.service";
+                    resetFailedCmd = "systemctl reset-failed pgpool-II.service; service pgpool-II start";
                     var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": resetFailedCmd, "params": "" }]), false, false, "root");
                     if (resp.result != 0) return resp;
                     addCmd = "jcm addPgNodeToPgpool2Conf " + '${@i}' + " &>> /var/log/run.log";
