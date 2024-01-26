@@ -91,6 +91,22 @@ actions:
           }
           return { result: 0 };
       - addSecondaries
+      - script: |-
+          for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+              var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+              if (resp.result == 0) {
+                  resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
+                  if (resp.result != 0) return resp;
+              }
+          }
+          for (var pgpoolCluster = 1, nPgpool = pgpool2Regions.length + 1; pgpoolCluster < nPgpool; pgpoolCluster++) {
+              resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session);
+              if (resp.result == 0) {
+              resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
+                  if (resp.result != 0) { return resp; }
+              }
+          }
+          return { result: 0 };
     - else:
       - getPswd
       - forEach(globals.pgsqlEnvs):
