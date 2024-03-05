@@ -211,7 +211,7 @@ actions:
                     var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": "jcm enableWatchdog", "params": "" }]), false, false, "root");
                     if (resp.result != 0) return resp;
                 }
-                enableWatchdogCmd = "jcm setPgpoolNodeId " + cluster + "; chown -R postgres:postgres /etc/pgpool-II; jem service start";
+                enableWatchdogCmd = "jcm setPgpoolNodeId " + cluster + "; chown -R postgres:postgres /etc/pgpool-II; jem service restart";
                 var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": enableWatchdogCmd, "params": "" }]), false, false, "root");
                 if (resp.result != 0) return resp;
             }
