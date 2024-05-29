@@ -16,6 +16,8 @@ nodes:
   nodeGroup: sqldb
   cluster: false
   skipNodeEmails: true
+  validation:
+    maxCount: 1
 
 onBeforeMigrate:
   stopEvent:
