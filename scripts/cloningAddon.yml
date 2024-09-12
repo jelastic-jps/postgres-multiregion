@@ -1,7 +1,7 @@
 type: update
 name: Multiregional Postgres Cloning Add-on
 logo: /images/postgres-70x70.png
-baseUrl: https://raw.githubusercontent.com/dimkadt/postgres-multiregion/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
 
 targetNodes: none
 
@@ -22,7 +22,7 @@ addons:
   - id: clone-postgres-multiregional-cluster
     name: Postgres multiregional cluster cloning
     description: Provides the ability to clone all the environments of the Postgres multiregional cluster. Cloned cluster will be available in the same environment group.
-    baseUrl: https://raw.githubusercontent.com/dimkadt/postgres-multiregion/master
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
     buttons:
       - confirmText: Do you want to clone all the environments of the Postgres multiregional cluster?
         loadingText: Cloning the Postgres multiregional cluster...

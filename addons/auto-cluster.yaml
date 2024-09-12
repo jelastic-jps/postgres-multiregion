@@ -3,7 +3,7 @@ id: postgres-primary-secondary-multiregion-auto-cluster
 logo: /images/postgres-70x70.png
 name: PostgreSQL Primary-Secondary Multiregion Auto-Cluster
 
-baseUrl: https://raw.githubusercontent.com/dimkadt/postgres-multiregion/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
 
 targetNodes:
   nodeGroup: sqldb
@@ -92,6 +92,8 @@ actions:
           return { result: 0 };
       - addSecondaries
       - script: |-
+          var regions = '${settings.regions}'.split(','),
+          pgpool2Regions = '${settings.pgpool2Regions}'.split(',');
           for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
               var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
               if (resp.result == 0) {

@@ -3,7 +3,7 @@ version: 1.7
 id: postgres-node
 name: PostgreSQL Node 
 
-baseUrl: https://raw.githubusercontent.com/dimkadt/postgres-multiregion/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
 
 globals:
   vpnAppid: ${settings.vpnAppid}
