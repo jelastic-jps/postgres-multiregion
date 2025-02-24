@@ -71,8 +71,8 @@ actions:
                   if (resp.result != 0) return resp;
                   resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": deletePgPoolPublicKeys, "params": "" }]), false, false, "root");
                   if (resp.result != 0) return resp;
-                  for (var pgpoolCluster = 1, n = pgpool2Regions.length + 1; pgpoolCluster < n; pgpoolCluster++) {
-                      var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
+                  for (var pgpoolCluster = 1, nPgpool = pgpool2Regions.length + 1; pgpoolCluster < nPgpool; pgpoolCluster++) {
+                      var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session);
                       if (resp.result == 0) {
                           resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": ipCmd, "params": "" }]), false, false, "root");
                           if (resp.result != 0) { return resp; } else { pgpoolIp = resp.responses[0].out; }
@@ -89,7 +89,26 @@ actions:
                   }
               }
           }
-          return { result: 0 };  
+          return { result: 0 };
+      - addSecondaries
+      - script: |-
+          var regions = '${settings.regions}'.split(','),
+          pgpool2Regions = '${settings.pgpool2Regions}'.split(',');
+          for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
+              var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
+              if (resp.result == 0) {
+                  resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
+                  if (resp.result != 0) return resp;
+              }
+          }
+          for (var pgpoolCluster = 1, nPgpool = pgpool2Regions.length + 1; pgpoolCluster < nPgpool; pgpoolCluster++) {
+              resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session);
+              if (resp.result == 0) {
+              resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
+                  if (resp.result != 0) { return resp; }
+              }
+          }
+          return { result: 0 };
     - else:
       - getPswd
       - forEach(globals.pgsqlEnvs):
@@ -102,11 +121,7 @@ actions:
             - script: |-
                 resp = jelastic.env.control.ExecCmdByGroup('${@i}', session, 'sqldb', toJSON([{ "command": "jem service restart", "params": "" }]), false, false, "root");
                 return resp;
-      - forEach(globals.pgsqlEnvs):
-          - if ('${@i}' != '${env.envName}'): 
-            - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
-            - addSlavesToHbaConf: 
-                ip: ${response.secondaryNodeIp}
+      - addSecondaries
       - install: ${baseUrl}/scripts/cloningAddon.yml
         envName: '${settings.mainEnvName}-1'
         settings:
@@ -115,6 +130,13 @@ actions:
           pgpool2Regions: "${settings.pgpool2Regions}"
           mainEnvName: "${settings.mainEnvName}"
     - fixConnInfo
+
+  addSecondaries:
+    - forEach(globals.pgsqlEnvs):
+        - if ('${@i}' != '${env.envName}'):
+          - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
+          - addSlavesToHbaConf:
+              ip: ${response.secondaryNodeIp}
 
   initSecondary:
     - cmd[${nodes.sqldb.master.id}]: |-
@@ -165,8 +187,11 @@ actions:
             for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
                 var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-pgpool2-' + cluster, session);
                 if (resp.result == 0) {
+                    resetFailedCmd = "systemctl reset-failed pgpool-II.service; service pgpool-II start";
+                    var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": resetFailedCmd, "params": "" }]), false, false, "root");
+                    if (resp.result != 0) return resp;
                     addCmd = "jcm addPgNodeToPgpool2Conf " + '${@i}' + " &>> /var/log/run.log";
-                    var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": addCmd, "params": "" }]), false, false, "postgres");
+                    resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": addCmd, "params": "" }]), false, false, "postgres");
                     if (resp.result != 0) return resp;
                 }
             }
@@ -188,7 +213,7 @@ actions:
                     var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": "jcm enableWatchdog", "params": "" }]), false, false, "root");
                     if (resp.result != 0) return resp;
                 }
-                enableWatchdogCmd = "jcm setPgpoolNodeId " + cluster + "; chown -R postgres:postgres /etc/pgpool-II; jem service start";
+                enableWatchdogCmd = "jcm setPgpoolNodeId " + cluster + "; chown -R postgres:postgres /etc/pgpool-II; jem service restart";
                 var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + cluster, session, 'extra', toJSON([{ "command": enableWatchdogCmd, "params": "" }]), false, false, "root");
                 if (resp.result != 0) return resp;
             }
