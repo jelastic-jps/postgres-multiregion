@@ -32,6 +32,8 @@ settings:
             caption: PostgreSQL 14
           - value: postgres15
             caption: PostgreSQL 15
+          - value: postgres15
+            caption: PostgreSQL 16
         default: postgres15
       - caption: Environment
         type: envname
