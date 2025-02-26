@@ -1,7 +1,7 @@
 type: install
 jpsVersion: '1.8.1'
-name: PostgreSQL Multi-Region Cluster PoC
-id: postgres-cluster-multiregions-poc
+name: PostgreSQL Multi-Region Cluster
+id: postgres-cluster-multiregions
 categories:
   - apps/clusters
   - apps/databases
