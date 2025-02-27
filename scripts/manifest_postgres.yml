@@ -79,7 +79,7 @@ actions:
         retries=60
         while [ $retries -gt 0 ]; do
             sleep 1
-            [ -n "$(netstat -nlpt 2>/dev/null | grep postmaster)" ] && break
+            [ -n "$(netstat -nlpt 2>/dev/null | grep -E 'postmaster|postgres')" ] && break
             let retries=${retries}-1
         done
       user: root

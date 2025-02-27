@@ -32,9 +32,11 @@ settings:
             caption: PostgreSQL 14
           - value: postgres15
             caption: PostgreSQL 15
-          - value: postgres15
+          - value: postgres16
             caption: PostgreSQL 16
-        default: postgres15
+          - value: postgres17
+            caption: PostgreSQL 17
+        default: postgres17
       - caption: Environment
         type: envname
         name: envName
