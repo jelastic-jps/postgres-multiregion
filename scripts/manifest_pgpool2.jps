@@ -1,7 +1,7 @@
 type: install
 version: 1.7
 id: pgpool2-node
-name: Pgpool II Node 
+name: Pgpool II Node
 
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/postgres-multiregion/master
 
@@ -16,6 +16,7 @@ nodes:
   cluster: false
   validation:
     maxCount: 1
+ssl: true
 
 onBeforeMigrate:
   stopEvent:
@@ -46,7 +47,7 @@ onInstall:
           var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
           if (resp.result == 0) {
               pg_hba_string = "1i host    all             pgpool          " + '${nodes.extra.master.address}' + "/32         md5";
-              pg_hba_comand = 'grep -q ' + '${nodes.extra.master.address}' + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';    
+              pg_hba_comand = 'grep -q ' + '${nodes.extra.master.address}' + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
               publicKeyCmd = 'echo \'${response.out}\' >> /var/lib/pgsql/.ssh/authorized_keys';
               var resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": publicKeyCmd, "params": "" }]), false, false, "root");
               if (resp.result != 0) return resp;
