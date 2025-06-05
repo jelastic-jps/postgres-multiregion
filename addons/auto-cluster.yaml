@@ -3,7 +3,7 @@ id: postgres-primary-secondary-multiregion-auto-cluster
 logo: /images/postgres-70x70.png
 name: PostgreSQL Primary-Secondary Multiregion Auto-Cluster
 
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@master
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@main
 
 targetNodes:
   nodeGroup: sqldb
