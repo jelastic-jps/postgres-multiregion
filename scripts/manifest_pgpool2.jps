@@ -3,7 +3,7 @@ version: 1.7
 id: pgpool2-node
 name: Pgpool II Node 
 
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@master
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@main
 
 globals:
   vpnAppid: ${settings.vpnAppid}
