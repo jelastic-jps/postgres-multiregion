@@ -3,7 +3,7 @@ version: 1.7
 id: postgres-node
 name: PostgreSQL Node 
 
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@master
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@main
 
 globals:
   vpnAppid: ${settings.vpnAppid}
