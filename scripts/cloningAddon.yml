@@ -1,7 +1,7 @@
 type: update
 name: Multiregional Postgres Cloning Add-on
 logo: /images/postgres-70x70.png
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@master
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@main
 
 targetNodes: none
 
