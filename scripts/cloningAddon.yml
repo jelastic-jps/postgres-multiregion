@@ -32,7 +32,7 @@ addons:
     actions:
       cloneCluster:
         - script: |-
-            var newMainEnvName = '${globals.mainEnvName}'.slice(0, '${globals.mainEnvName}'.length - 3) + '-cl', 
+            var newMainEnvName = '${globals.mainEnvName}'.slice(0, '${globals.mainEnvName}'.length - 3) + '-cl',
                 onAfterReturn = { setGlobals: {} },
                 glbs = onAfterReturn.setGlobals;
             glbs["newMainEnvName"] = newMainEnvName;

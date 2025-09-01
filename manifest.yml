@@ -6,7 +6,7 @@ categories:
   - apps/clusters
   - apps/databases
 logo: /images/postgres-multiregion-logo.png
-description: 
+description:
   text: Highly-available and reliable Postgres cluster setup with automatic multi-region distribution
   short: Enterprise-grade Postgres Cluster with automatic distribution across several regions
 baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@main
@@ -24,8 +24,8 @@ settings:
     fields:
       - caption: Version
         name: nodeType
-        type: list    
-        values: 
+        type: list
+        values:
           - value: postgres13
             caption: PostgreSQL 13
           - value: postgres14
@@ -150,7 +150,7 @@ onInstall:
   - script: ${globals.multiregional_utils}/get-cluster-envs.js
     envName: ${settings.envName}-1
   - setGlobals:
-      DBEnvs: ${response.items.join(,)} 
+      DBEnvs: ${response.items.join(,)}
   - if (${settings.pgpoolEnabled:false}):
     - createPgpool2Envs
     - setGlobals:

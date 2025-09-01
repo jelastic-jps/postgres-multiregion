@@ -42,7 +42,7 @@ onAfterResetNodePassword[sqldb]:
 
 onInstall:
   - cmd[sqldb]: |-
-      source /etc/jelastic/metainf.conf 
+      source /etc/jelastic/metainf.conf
       if [ "$COMPUTE_TYPE_VERSION" -ge "13" ] ; then
           echo 'wal_keep_size = 2048' >> ${globals.postgresqlConf}
       else
@@ -85,7 +85,7 @@ actions:
             let retries=${retries}-1
         done
       user: root
-    
+
   setPasswordAcrossRegions:
     - cmd[${nodes.sqldb.master.id}]: jcm getPswd
     - setGlobals:
@@ -120,7 +120,7 @@ actions:
         for (var cluster = 1, n = regions.length + 1; cluster < n; cluster++) {
             if ('${settings.mainEnvName}-' + cluster != 'env.envName') {
                 var resp = jelastic.env.control.GetEnvInfo('${settings.mainEnvName}-' + cluster, session);
-                if (resp.result == 0) { 
+                if (resp.result == 0) {
                     for (var i = 0, k = resp.nodes; i < k.length; i++) { pgsqlIPs.push(k[i].address); }
                 }
             }

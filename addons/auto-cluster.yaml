@@ -77,7 +77,7 @@ actions:
                           resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": ipCmd, "params": "" }]), false, false, "root");
                           if (resp.result != 0) { return resp; } else { pgpoolIp = resp.responses[0].out; }
                           pg_hba_string = "1i host    all             pgpool          " + pgpoolIp + "/32         md5";
-                          pg_hba_comand = 'grep -q ' + pgpoolIp + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf'; 
+                          pg_hba_comand = 'grep -q ' + pgpoolIp + ' /var/lib/pgsql/data/pg_hba.conf || sed -ci -e \'' + pg_hba_string + '\' /var/lib/pgsql/data/pg_hba.conf';
                           resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-' + cluster, session, 'sqldb', toJSON([{ "command": pg_hba_comand, "params": "" }]), false, false, "root");
                           if (resp.result != 0) return resp;
                           resp = jelastic.env.control.ExecCmdByGroup('${settings.mainEnvName}-pgpool2-' + pgpoolCluster, session, 'extra', toJSON([{ "command": getPgPooolPublicKey, "params": "" }]), false, false, "root");
@@ -112,9 +112,9 @@ actions:
     - else:
       - getPswd
       - forEach(globals.pgsqlEnvs):
-          - if ('${@i}' != '${env.envName}'): 
+          - if ('${@i}' != '${env.envName}'):
             - script: ${baseUrl}/scripts/getSecondaryNodeParam.js
-            - initSecondary: 
+            - initSecondary:
                 id: ${response.secondaryNodeId}
                 ip: ${response.secondaryNodeIp}
                 domain: ${@i}
@@ -145,10 +145,10 @@ actions:
     - cmd[${nodes.sqldb.master.id}]: |-
         sudo jem service restart
     - script: |-
-        initSecondaryCmd = "jcm initSecondary &>> /var/log/run.log; jcm updateHbaConf ${globals.pgsqlAddresses} ${this.ip}; chown -R postgres:postgres /var/lib/pgsql/data; jem service restart";
+        initSecondaryCmd = "jcm setPswd ${globals.password}; jcm initSecondary &>> /var/log/run.log; jcm updateHbaConf ${globals.pgsqlAddresses} ${this.ip}; chown -R postgres:postgres /var/lib/pgsql/data; jem service restart";
         resp = jelastic.env.control.ExecCmdById('${this.domain}', session, ${this.id}, toJSON([{ "command": initSecondaryCmd, "params": "" }]), false, "root");
         return resp;
-        
+
   addSlavesToHbaConf:
     - script: |-
         var regions = '${settings.regions}'.split(','), currentPgNodeIp,
@@ -164,7 +164,7 @@ actions:
             }
         }
         return { result: 0 };
-        
+
   fixConnInfo:
     - script: |-
         var regions = '${settings.regions}'.split(',');
@@ -224,5 +224,5 @@ actions:
     - cmd[${nodes.sqldb.master.id}]: |-
         jcm initMaster &>> /var/log/run.log
         jcm getPswd
-    - setGlobals: 
+    - setGlobals:
         password: ${response.out}
