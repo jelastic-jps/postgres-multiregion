@@ -9,12 +9,12 @@ logo: /images/postgres-multiregion-logo.png
 description:
   text: Highly-available and reliable Postgres cluster setup with automatic multi-region distribution
   short: Enterprise-grade Postgres Cluster with automatic distribution across several regions
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/postgres-multiregion@main
+baseUrl: https://raw.githubusercontent.com/sych74/postgres-multiregion/JE-76578
 
 onBeforeInit: scripts/onBeforeInit.js
 
 globals:
-  multiregional_utils: https://cdn.jsdelivr.net/gh/jelastic-jps/common@main/multiregional-cluster-utils
+  multiregional_utils: https://raw.githubusercontent.com/sych74/common/JE-76578/multiregional-cluster-utils
   cluster_app: postgres
   password: ${fn.password(10)}
   pgpool2Regions: ""
