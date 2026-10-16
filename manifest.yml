@@ -92,26 +92,32 @@ mixins:
 actions:
   createPgpool2Envs:
   - script: |
-      var regions = '${settings.pgpool2Regions}'.split(','), actions = [];
-      var envGroups = eval('(' + MANIFEST + ')').envGroups;
-      for (var cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
-        actions.push({
+      var regions = '${settings.pgpool2Regions}'.split(','),
+      envGroups = eval('(' + MANIFEST + ')').envGroups,
+      ownerUid = '${globals.ownerUid}',
+      resp, cluster, n, payload;
+      for (cluster = 1, n = regions.length + 1; cluster < n; cluster ++) {
+        payload = {
+          session: session,
+          appid: appid,
           jps: "${baseUrl}/scripts/manifest_pgpool2.jps?_r=${fn.random}",
           envName: "${settings.envName}-pgpool2-" + cluster,
           loggerName: "${settings.envName}-pgpool2-" + cluster,
           envGroups: envGroups,
-          displayName: "Pgpool-II node " + cluster ,
+          displayName: "Pgpool-II node " + cluster,
           region: "${globals.pgpoolRegion-" + cluster + "}",
-          ownerUid: "${globals.ownerUid}",
           settings: {
             nodeType: "pgpool2",
             password: "${globals.password}",
             regions: "${settings.regions}",
             mainEnvName: "${settings.envName}"
           }
-        });
+        };
+        if (ownerUid) payload.ownerUid = ownerUid;
+        resp = api.marketplace.jps.Install(payload);
+        if (resp.result != 0) return resp;
       }
-      return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
+      return { result: 0 };
 
   attachNodeGroups:
     - script: |
