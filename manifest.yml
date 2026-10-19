@@ -45,6 +45,9 @@ settings:
         showFullDomain: false
         tooltip: Maximum length of environment name is 16 symbols
         required: true
+      - type: owner
+        name: ownerUid
+        caption: Owner
       - type: checkbox
         caption: "Create separate environment group"
         name: envGroupEnabled
@@ -55,6 +58,7 @@ settings:
         disableInactive: true
         selectFirstAvailable: false
         multiSelect: true
+        dependsOn: ownerUid
         min: 2
         max: 5
         filter:
@@ -73,6 +77,7 @@ settings:
               disableInactive: true
               selectFirstAvailable: false
               multiSelect: true
+              dependsOn: ownerUid
               min: 1
               max: 5
               filter:
@@ -97,6 +102,7 @@ actions:
           envGroups: envGroups,
           displayName: "Pgpool-II node " + cluster ,
           region: "${globals.pgpoolRegion-" + cluster + "}",
+          ownerUid: "${settings.ownerUid:[user.uid]}",
           settings: {
             nodeType: "pgpool2",
             password: "${globals.password}",
