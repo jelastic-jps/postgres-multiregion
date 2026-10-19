@@ -102,7 +102,7 @@ actions:
           envGroups: envGroups,
           displayName: "Pgpool-II node " + cluster ,
           region: "${globals.pgpoolRegion-" + cluster + "}",
-          ownerUid: "${globals.ownerUid}",
+          ownerUid: "${settings.ownerUid:[user.uid]}",
           settings: {
             nodeType: "pgpool2",
             password: "${globals.password}",
